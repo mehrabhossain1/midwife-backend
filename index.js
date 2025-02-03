@@ -32,6 +32,7 @@ async function run() {
     // User Registration
     app.post("/api/v1/register", async (req, res) => {
       const {
+        name,
         email,
         password,
         confirmPassword,
@@ -42,6 +43,7 @@ async function run() {
 
       // Validate all fields are provided
       if (
+        !name ||
         !email ||
         !password ||
         !confirmPassword ||
@@ -74,6 +76,7 @@ async function run() {
 
       // Create user object
       const newUser = {
+        name,
         email,
         password: hashedPassword,
         location,
