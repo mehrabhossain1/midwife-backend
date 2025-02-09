@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const { MongoClient } = require("mongodb");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const { z } = require("zod");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -30,70 +31,80 @@ async function run() {
 
     //! USERS API START
     // User Registration
+
+    // Zod schema for validation
+    const registerSchema = z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(6),
+      confirmPassword: z.string().min(6),
+      location: z.object({
+        lat: z.number(),
+        lng: z.number(),
+      }),
+      institution: z.string(),
+      mobileNumber: z
+        .string()
+        .regex(/^\d{11}$/, "Mobile number must be 11 digits"),
+    });
+
     app.post("/api/v1/register", async (req, res) => {
-      const {
-        name,
-        email,
-        password,
-        confirmPassword,
-        location,
-        institution,
-        mobileNumber,
-      } = req.body;
+      try {
+        // Validate incoming data using Zod
+        const validatedData = registerSchema.parse(req.body);
 
-      // Validate all fields are provided
-      if (
-        !name ||
-        !email ||
-        !password ||
-        !confirmPassword ||
-        !location ||
-        !institution ||
-        !mobileNumber
-      ) {
-        return res
-          .status(400)
-          .json({ success: false, message: "All fields are required" });
+        const {
+          name,
+          email,
+          password,
+          confirmPassword,
+          location,
+          institution,
+          mobileNumber,
+        } = validatedData;
+
+        // Validate password & confirmPassword match
+        if (password !== confirmPassword) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Passwords do not match" });
+        }
+
+        // Check if email already exists
+        const existingUser = await collection.findOne({ email });
+        if (existingUser) {
+          return res
+            .status(400)
+            .json({ success: false, message: "User already exists" });
+        }
+
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create user object
+        const newUser = {
+          name,
+          email,
+          password: hashedPassword,
+          location,
+          institution,
+          mobileNumber,
+          role: "user", // Default role
+          isVerified: false, // Hidden from the user, used for admin approval
+          createdAt: new Date(),
+        };
+
+        // Insert user into database
+        await collection.insertOne(newUser);
+
+        res.status(201).json({
+          success: true,
+          message:
+            "User registered successfully. Please verify your email or phone number.",
+        });
+      } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
       }
-
-      // Check if password & confirmPassword match
-      if (password !== confirmPassword) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Passwords do not match" });
-      }
-
-      // Check if email already exists
-      const existingUser = await collection.findOne({ email });
-      if (existingUser) {
-        return res
-          .status(400)
-          .json({ success: false, message: "User already exists" });
-      }
-
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create user object
-      const newUser = {
-        name,
-        email,
-        password: hashedPassword,
-        location,
-        institution,
-        mobileNumber,
-        role: "user", // Default role
-        isVerified: false, // Hidden from the user, used for admin approval
-      };
-
-      // Insert user into database
-      await collection.insertOne(newUser);
-
-      res.status(201).json({
-        success: true,
-        message:
-          "User registered successfully. Please verify your email or phone number.",
-      });
     });
 
     // User Login
@@ -157,6 +168,37 @@ async function run() {
 
       res.json({ success: true, users: sanitizedUsers });
     });
+
+    //! recent-users
+    app.get("/api/v1/admin/recent-users", async (req, res) => {
+      try {
+        const now = new Date();
+        const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+        const twentyFourHoursAgo = new Date(
+          now.getTime() - 24 * 60 * 60 * 1000
+        );
+
+        const last30MinutesUsers = await collection
+          .find({ createdAt: { $gte: thirtyMinutesAgo } })
+          .toArray();
+
+        const last24HoursUsers = await collection
+          .find({ createdAt: { $gte: twentyFourHoursAgo } })
+          .toArray();
+
+        res.json({
+          success: true,
+          last30MinutesUsers,
+          last24HoursUsers,
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    // ! Report
+
+    // ! Report
 
     //
     // Start the server
