@@ -164,7 +164,10 @@ async function run() {
 
     // !Admin Dashboard - Get All Users (/api/v1/admin/users)
     app.get("/api/v1/admin/users", async (req, res) => {
-      const users = await collection.find().toArray();
+      const users = await collection
+        .find()
+        .sort({ createdAt: -1 }) // Sort by creation time (latest first)
+        .toArray();
 
       // Hide passwords from the response
       const sanitizedUsers = users.map(({ password, ...user }) => user);
