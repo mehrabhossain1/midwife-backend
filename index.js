@@ -110,7 +110,6 @@ async function run() {
       }
     });
 
-    // User Login
     app.post("/api/v1/login", async (req, res) => {
       const { email, password } = req.body;
       const user = await collection.findOne({ email });
@@ -124,9 +123,19 @@ async function run() {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      // Generate token including role and isVerified status
+      // 🔴 Prevent blocked users from logging in
+      if (user.isBlocked) {
+        return res.status(403).json({ message: "Your account is on hold" });
+      }
+
+      // Generate token including role, isVerified, and isBlocked status
       const token = jwt.sign(
-        { email: user.email, role: user.role, isVerified: user.isVerified },
+        {
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+          isBlocked: user.isBlocked, // 🔥 Store isBlocked in token
+        },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
@@ -137,6 +146,7 @@ async function run() {
         token,
         role: user.role,
         isVerified: user.isVerified,
+        isBlocked: user.isBlocked, // 🔥 Send isBlocked in response
       });
     });
 
