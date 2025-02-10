@@ -42,6 +42,7 @@ async function run() {
         lat: z.number(),
         lng: z.number(),
       }),
+      designation: z.string(),
       institution: z.string(),
       mobileNumber: z
         .string()
@@ -59,6 +60,7 @@ async function run() {
           password,
           confirmPassword,
           location,
+          designation,
           institution,
           mobileNumber,
         } = validatedData;
@@ -87,6 +89,7 @@ async function run() {
           email,
           password: hashedPassword,
           location,
+          designation,
           institution,
           mobileNumber,
           role: "user", // Default role
