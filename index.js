@@ -162,6 +162,38 @@ async function run() {
       res.json({ success: true, message: "User verified successfully" });
     });
 
+    // ! Blocked user
+    app.patch("/api/v1/admin/block-user/:email", async (req, res) => {
+      try {
+        const { email } = req.params;
+        const { isBlocked, isVerified } = req.body;
+
+        // Check if user exists
+        const user = await collection.findOne({ email });
+        if (!user) {
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        }
+
+        // Update user's blocked and verified status
+        await collection.updateOne(
+          { email },
+          { $set: { isBlocked, isVerified } }
+        );
+
+        res.json({
+          success: true,
+          message: "User status updated successfully",
+        });
+      } catch (error) {
+        console.error("Error updating user status:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
+
     // !Admin Dashboard - Get All Users (/api/v1/admin/users)
     app.get("/api/v1/admin/users", async (req, res) => {
       const users = await collection
