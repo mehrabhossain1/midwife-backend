@@ -172,6 +172,34 @@ async function run() {
       res.json({ success: true, users: sanitizedUsers });
     });
 
+    //! Delete User
+    app.delete("/api/v1/admin/users", async (req, res) => {
+      try {
+        const { email } = req.body;
+
+        if (!email) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Email is required" });
+        }
+
+        const result = await collection.deleteOne({ email });
+
+        if (result.deletedCount === 0) {
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        }
+
+        res.json({ success: true, message: "User deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
+
     //! recent-users
     app.get("/api/v1/admin/recent-users", async (req, res) => {
       try {
