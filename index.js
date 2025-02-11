@@ -227,7 +227,7 @@ async function run() {
       const { isSolved, solution, solverName } = req.body;
 
       try {
-        const report = await reportsCollection.findOneAndUpdate(
+        const report = await reportsCollection.findOne(
           { _id: new ObjectId(id) },
           {
             $set: {
