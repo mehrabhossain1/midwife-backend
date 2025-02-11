@@ -28,6 +28,7 @@ async function run() {
 
     const db = client.db("midwife");
     const collection = db.collection("users");
+    const reportsCollection = db.collection("reports");
 
     //! USERS API START
     // User Registration
@@ -47,6 +48,22 @@ async function run() {
       mobileNumber: z
         .string()
         .regex(/^\d{11}$/, "Mobile number must be 11 digits"),
+    });
+
+    // Zod schema for report validation
+    const reportSchema = z.object({
+      name: z.string().min(1, "Name is required"),
+      mobileNumber: z
+        .string()
+        .regex(/^\d{11}$/, "Mobile number must be 11 digits"),
+      address: z.string().min(1, "Address is required"),
+      location: z.object({
+        lat: z.number(),
+        lng: z.number(),
+      }),
+      cause: z.string().min(1, "Please select a cause"),
+      otherCause: z.string().optional(),
+      createdAt: z.date().default(() => new Date()),
     });
 
     app.post("/api/v1/register", async (req, res) => {
@@ -151,6 +168,60 @@ async function run() {
     });
 
     //! USERS API END
+
+    // ! Reports API
+    // POST: Create a new report
+    app.post("/api/v1/reports", async (req, res) => {
+      try {
+        const validatedData = reportSchema.parse(req.body);
+
+        // Add isSolved property as false by default
+        const reportWithStatus = {
+          ...validatedData,
+          isSolved: false, // Default status
+        };
+
+        await reportsCollection.insertOne(reportWithStatus);
+
+        res.status(201).json({
+          success: true,
+          message: "Report submitted successfully.",
+          report: reportWithStatus,
+        });
+      } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+      }
+    });
+
+    // GET: Fetch all reports
+    app.get("/api/v1/reports", async (req, res) => {
+      try {
+        const now = new Date();
+        const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+        const allReports = await reportsCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        const last24HoursReports = allReports.filter(
+          (report) => new Date(report.createdAt) >= last24Hours
+        );
+
+        res.json({
+          success: true,
+          allReportsCount: allReports.length,
+          allReports,
+          last24HoursReports,
+        });
+      } catch (err) {
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
+
+    // ! Reports API
 
     //! Admin Dashboard
 
