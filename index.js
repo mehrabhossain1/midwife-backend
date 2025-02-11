@@ -221,6 +221,39 @@ async function run() {
       }
     });
 
+    // PATCH: Update report status
+    app.patch("/api/v1/reports/:id", async (req, res) => {
+      const { id } = req.params;
+      const { isSolved, solution, solverName } = req.body;
+
+      try {
+        const report = await reportsCollection.findOneAndUpdate(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              isSolved,
+              solution,
+              solverName,
+            },
+          },
+          { returnDocument: "after" }
+        );
+
+        if (report.value) {
+          res.json({
+            success: true,
+            report: report.value,
+          });
+        } else {
+          res.status(404).json({ success: false, message: "Report not found" });
+        }
+      } catch (err) {
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
+
     // ! Reports API
 
     //! Admin Dashboard
