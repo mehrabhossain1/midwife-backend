@@ -227,6 +227,9 @@ async function run() {
         const { reportId } = req.params;
         const { isSolved, solution, solverName } = req.body;
 
+        console.log("Received PATCH request for reportId:", reportId);
+        console.log("Request body:", req.body);
+
         if (!isSolved || !solution || !solverName) {
           return res.status(400).json({
             success: false,
@@ -234,8 +237,20 @@ async function run() {
           });
         }
 
+        // Convert reportId to ObjectId and handle invalid format
+        let objectId;
+        try {
+          objectId = require("mongodb").ObjectId(reportId);
+        } catch (idErr) {
+          console.error("Invalid reportId format:", idErr);
+          return res.status(400).json({
+            success: false,
+            message: "Invalid report ID format",
+          });
+        }
+
         const result = await reportsCollection.updateOne(
-          { _id: require("mongodb").ObjectId(reportId) },
+          { _id: objectId },
           {
             $set: {
               isSolved,
@@ -254,7 +269,7 @@ async function run() {
         }
 
         const updatedReport = await reportsCollection.findOne({
-          _id: require("mongodb").ObjectId(reportId),
+          _id: objectId,
         });
 
         res.status(200).json({
@@ -263,10 +278,10 @@ async function run() {
           report: updatedReport,
         });
       } catch (err) {
-        console.error("Error updating report:", err);
+        console.error("Detailed error updating report:", err.stack);
         res.status(500).json({
           success: false,
-          message: "Internal server error",
+          message: "Internal server error: " + err.message,
         });
       }
     });
