@@ -222,7 +222,54 @@ async function run() {
     });
 
     // PATCH: Update report status
+    app.patch("/api/v1/reports/:reportId", async (req, res) => {
+      try {
+        const { reportId } = req.params;
+        const { isSolved, solution, solverName } = req.body;
 
+        if (!isSolved || !solution || !solverName) {
+          return res.status(400).json({
+            success: false,
+            message: "isSolved, solution, and solverName are required",
+          });
+        }
+
+        const result = await reportsCollection.updateOne(
+          { _id: require("mongodb").ObjectId(reportId) },
+          {
+            $set: {
+              isSolved,
+              solution,
+              solverName,
+              solvedAt: new Date(),
+            },
+          }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Report not found",
+          });
+        }
+
+        const updatedReport = await reportsCollection.findOne({
+          _id: require("mongodb").ObjectId(reportId),
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Report updated successfully",
+          report: updatedReport,
+        });
+      } catch (err) {
+        console.error("Error updating report:", err);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+        });
+      }
+    });
     // ! Reports API
 
     //! Admin Dashboard
