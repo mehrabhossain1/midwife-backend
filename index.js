@@ -1,17 +1,17 @@
-import express, { json } from "express";
-import cors from "cors";
-import { hash, compare } from "bcrypt";
-import { MongoClient } from "mongodb";
+const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const { MongoClient } = require("mongodb");
 require("dotenv").config();
-import { sign } from "jsonwebtoken";
-import { z } from "zod";
+const jwt = require("jsonwebtoken");
+const { z } = require("zod");
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(json());
+app.use(express.json());
 
 // MongoDB Connection URL
 const uri = process.env.MONGODB_URI;
@@ -98,7 +98,7 @@ async function run() {
         }
 
         // Hash the password
-        const hashedPassword = await hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create user object
         const newUser = {
@@ -135,7 +135,7 @@ async function run() {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      const isPasswordValid = await compare(password, user.password);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -146,7 +146,7 @@ async function run() {
       }
 
       // Generate token including role, isVerified, and isBlocked status
-      const token = sign(
+      const token = jwt.sign(
         {
           email: user.email,
           role: user.role,
@@ -237,22 +237,15 @@ async function run() {
           });
         }
 
-        // Test ObjectId conversion
+        // Convert reportId to ObjectId and handle invalid format
         let objectId;
         try {
-          console.log("Attempting to convert reportId to ObjectId:", reportId);
           objectId = require("mongodb").ObjectId(reportId);
-          console.log("Converted to ObjectId:", objectId);
         } catch (idErr) {
-          console.error(
-            "Invalid reportId format, error details:",
-            idErr.message,
-            idErr.stack
-          );
+          console.error("Invalid reportId format:", idErr);
           return res.status(400).json({
             success: false,
             message: "Invalid report ID format",
-            error: idErr.message, // Include specific error
           });
         }
 
